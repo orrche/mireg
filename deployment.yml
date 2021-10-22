@@ -1,0 +1,68 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mireg
+spec:
+  selector:
+    matchLabels:
+      name: mireg
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        name: mireg
+    spec:
+      containers:
+        - image: mireg.wr25.org/mireg:latest
+          imagePullPolicy: Always
+          name: mireg
+          ports:
+            - containerPort: 5000
+          volumeMounts:
+            - mountPath: /data
+              name: imagestorage
+      volumes:
+        - name: imagestorage
+          persistentVolumeClaim:
+            claimName: imagestorage-test
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: mireg-service
+spec:
+  ports:
+    - port: 5000
+      targetPort: 5000
+      protocol: TCP
+  selector:
+    name: mireg
+
+---
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: mireg
+  annotations:
+    kubernetes.io/ingress.class: traefik
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  tls:
+    - secretName: mireg-tls
+      hosts:
+        - test.mireg.wr25.org
+  rules:
+    - host: test.mireg.wr25.org
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: mireg-service
+                port:
+                  number: 5000
+
