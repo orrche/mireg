@@ -17,12 +17,11 @@ import (
 )
 
 func validateName(name string) bool {
-	for _, r := range name {
-		if (r < 'a' || r > 'z') && (r < 'A' || r > 'Z') {
-			return false
-		}
+	matched, err := regexp.Match(`^[a-zA-Z0-9/]*$`, []byte(name))
+	if err == nil && matched {
+		return true
 	}
-	return true
+	return false
 }
 
 func validateTag(tag string) bool {
@@ -72,10 +71,10 @@ func Accepts(r *http.Request, t string) bool {
 func main() {
 
 	p := pat.New()
-	p.Post("/v2/{repo}/manifests/{tag}", func(w http.ResponseWriter, r *http.Request) {
+	p.Post("/v2/{repo:.*}/manifests/{tag}", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
-	p.Get("/v2/{repo}/manifests/{tag}", func(w http.ResponseWriter, r *http.Request) {
+	p.Get("/v2/{repo:.*}/manifests/{tag}", func(w http.ResponseWriter, r *http.Request) {
 		repo := r.URL.Query().Get(":repo")
 		tag := r.URL.Query().Get(":tag")
 
@@ -108,7 +107,7 @@ func main() {
 		w.WriteHeader(http.StatusOK)
 		w.Write(fileBytes)
 	})
-	p.Get("/v2/{repo}/blobs/{digest}", func(w http.ResponseWriter, r *http.Request) {
+	p.Get("/v2/{repo:.*}/blobs/{digest}", func(w http.ResponseWriter, r *http.Request) {
 		repo := r.URL.Query().Get(":repo")
 		digest := r.URL.Query().Get(":digest")
 
@@ -124,7 +123,7 @@ func main() {
 		io.Copy(w, f)
 		w.WriteHeader(http.StatusOK)
 	})
-	p.Put("/v2/{repo}/blobs/uploads/{tag}", func(w http.ResponseWriter, r *http.Request) {
+	p.Put("/v2/{repo:.*}/blobs/uploads/{tag}", func(w http.ResponseWriter, r *http.Request) {
 		repo := r.URL.Query().Get(":repo")
 		tag := r.URL.Query().Get(":tag")
 		digest := r.URL.Query().Get("digest")
@@ -148,7 +147,7 @@ func main() {
 		w.WriteHeader(http.StatusCreated)
 
 	})
-	p.Put("/v2/{repo}/manifests/{tag}", func(w http.ResponseWriter, r *http.Request) {
+	p.Put("/v2/{repo:.*}/manifests/{tag}", func(w http.ResponseWriter, r *http.Request) {
 		repo := r.URL.Query().Get(":repo")
 		tag := r.URL.Query().Get(":tag")
 
@@ -193,7 +192,7 @@ func main() {
 		}
 
 	})
-	p.Head("/v2/{repo}/manifests/{tag}", func(w http.ResponseWriter, r *http.Request) {
+	p.Head("/v2/{repo:.*}/manifests/{tag}", func(w http.ResponseWriter, r *http.Request) {
 		repo := r.URL.Query().Get(":repo")
 		tag := r.URL.Query().Get(":tag")
 		if !(validateName(repo) && (validateTag(tag) || validateDigest(tag))) {
@@ -206,7 +205,7 @@ func main() {
 		}
 		w.WriteHeader(http.StatusOK)
 	})
-	p.Head("/v2/{repo}/blobs/{digest}", func(w http.ResponseWriter, r *http.Request) {
+	p.Head("/v2/{repo:.*}/blobs/{digest}", func(w http.ResponseWriter, r *http.Request) {
 		repo := r.URL.Query().Get(":repo")
 		digest := r.URL.Query().Get(":digest")
 
@@ -229,7 +228,7 @@ func main() {
 		fmt.Fprintf(w, "Hello World\n")
 	})
 
-	p.Patch("/v2/{repo}/blobs/uploads/{guid}", func(w http.ResponseWriter, r *http.Request) {
+	p.Patch("/v2/{repo:.*}/blobs/uploads/{guid}", func(w http.ResponseWriter, r *http.Request) {
 		repo := r.URL.Query().Get(":repo")
 		guid := r.URL.Query().Get(":guid")
 
@@ -255,7 +254,7 @@ func main() {
 		w.Header().Add("Location", "/v2/"+repo+"/blobs/uploads/"+guid)
 		w.WriteHeader(http.StatusAccepted)
 	})
-	p.Post("/v2/{repo}/blobs/uploads/", func(w http.ResponseWriter, r *http.Request) {
+	p.Post("/v2/{repo:.*}/blobs/uploads/", func(w http.ResponseWriter, r *http.Request) {
 		repo := r.URL.Query().Get(":repo")
 
 		if !(validateName(repo)) {
