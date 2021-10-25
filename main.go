@@ -27,7 +27,11 @@ func validateName(name string) bool {
 func validateTag(tag string) bool {
 	for _, r := range tag {
 		if (r < 'a' || r > 'z') && (r < 'A' || r > 'Z') {
-			return false
+			if r < '0' || r > '9' {
+				if r != '.' {
+					return false
+				}
+			}
 		}
 	}
 	return true
