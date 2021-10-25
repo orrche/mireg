@@ -1,36 +1,34 @@
-
 APPLICATION = mireg
-REGISTRY = mireg.wr25.org
-KUBECTLOPTS =
+
+REGISTRY ?= mireg.wr25.org
+KUBECTLOPTS ?=
+RELEASE ?= latest
+DOCKERCOMMAND ?= podman
+
+GOCODE := $(shell find . -name \*.go -print)
+
+.PHONY: clean
 
 all: apply.touch
 
-
-mireg: main.go Makefile
+$(APPLICATION): $(GOCODE) Makefile
+	go test
 	go build .
 
-docker.digest: mireg Dockerfile
-	podman build -t mireg.wr25.org/mireg:latest .
+docker.digest: Dockerfile docker_entrypoint.sh $(APPLICATION)
+	$(DOCKERCOMMAND) build -t $(REGISTRY)/$(APPLICATION):$(RELEASE) .
+	$(DOCKERCOMMAND) push $(REGISTRY)/$(APPLICATION):$(RELEASE)
 
-	podman tag mireg.wr25.org/mireg:latest $(REGISTRY)/mireg:latest
-	podman push  $(REGISTRY)/mireg:latest
-	
-	echo -n "sha256:" > docker.digest
-	curl -H "Accept: application/vnd.docker.distribution.manifest.v2+json" https://$(REGISTRY)/v2/$(APPLICATION)/manifests/latest | sha256sum | awk '{print $$1}' >> docker.digest
+	echo -n "sha256:" > docker.digest 
+	curl -s -H "Accept: application/vnd.docker.distribution.manifest.v2+json" https://$(REGISTRY)/v2/$(APPLICATION)/manifests/$(RELEASE) | sha256sum | awk '{print $$1}' >> docker.digest
 
-	sed -i "s#image: $(REGISTRY)/$(APPLICATION):latest.*#image: $(REGISTRY)/$(APPLICATION):latest@$$(cat docker.digest)#" deployment.yml
+deployment.apply.yml: docker.digest deployment.yml
+	cat deployment.yml | sed "s#image: [^/]*/$(APPLICATION):.*#image: $(REGISTRY)/$(APPLICATION):$(RELEASE)@$$(cat docker.digest)#" > deployment.apply.yml
 
-
-apply.touch: deployment.yml docker.digest
-	kubectl $(KUBECTLOPTS) apply -f deployment.yml
+apply.touch: deployment.apply.yml
+	kubectl $(KUBECTLOPTS) apply -f deployment.apply.yml
 	kubectl $(KUBECTLOPTS) rollout status deployment $(APPLICATION)
 	touch apply.touch
 
-restart:
-	kubectl $(KUBECTLOPTS) scale --replicas=0 deployment mireg
-	sleep 3
-	kubectl $(KUBECTLOPTS) scale --replicas=1 deployment mireg
-
-
 clean:
-	rm -f mireg docker.digest apply.touch
+	rm $(APPLICATION) docker.digest apply.touch -f
