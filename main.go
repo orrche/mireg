@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"regexp"
 	"strings"
 
 	"github.com/google/uuid"
@@ -25,29 +26,19 @@ func validateName(name string) bool {
 }
 
 func validateTag(tag string) bool {
-	for _, r := range tag {
-		if (r < 'a' || r > 'z') && (r < 'A' || r > 'Z') {
-			if r < '0' || r > '9' {
-				if r != '.' {
-					return false
-				}
-			}
-		}
+	matched, err := regexp.Match(`^[a-zA-Z0-9\.]*$`, []byte(tag))
+	if err == nil && matched {
+		return true
 	}
-	return true
+	return false
 }
 
 func validateDigest(digest string) bool {
-	for _, r := range digest {
-		if (r < 'a' || r > 'z') && (r < 'A' || r > 'Z') {
-			if r != ':' {
-				if r < '0' || r > '9' {
-					return false
-				}
-			}
-		}
+	matched, err := regexp.Match(`^[a-zA-Z0-9:]*$`, []byte(digest))
+	if err == nil && matched {
+		return true
 	}
-	return true
+	return false
 }
 
 func PrepRepo(repo string) error {
